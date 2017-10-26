@@ -14,7 +14,7 @@ class kestrelAMPL:
   def __init__(self):
     (self.host,self.port) = self.getNEOSServer()
     sys.stdout.write("Connecting to: %s:%s\n" % (self.host,self.port) )
-    self.neos = xmlrpclib.ServerProxy("http://%s:%s" % (self.host,self.port) )
+    self.neos = xmlrpclib.ServerProxy("https://%s:%s" % (self.host,self.port) )
     try:
       result = self.neos.ping()
     except socket.error, e:
@@ -56,7 +56,7 @@ class kestrelAMPL:
     sys.stdout.write("Job %d submitted to NEOS, password='%s'\n" %
                      (jobNumber,password))
     sys.stdout.write("Check the following URL for progress report :\n")
-    sys.stdout.write("http://%s/neos/cgi-bin/nph-neos-solver.cgi?admin=results&jobnumber=%d&pass=%s\n" % (self.host, jobNumber,password))
+    sys.stdout.write("https://%s/neos/cgi-bin/nph-neos-solver.cgi?admin=results&jobnumber=%d&pass=%s\n" % (self.host, jobNumber,password))
     return (jobNumber,password)
 
   def getJobAndPassword(self):
@@ -82,7 +82,7 @@ class kestrelAMPL:
     the job and password values
     """
     host="neos-server.org"
-    port="3332"
+    port="3333"
     options=""
 
     if "neos_server" in os.environ.keys():
