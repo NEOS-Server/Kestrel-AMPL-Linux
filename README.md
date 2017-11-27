@@ -1,1 +1,1 @@
-# Kestrel-AMPL-Linux
+# Kestrel AMPL client for Linux and Mac
