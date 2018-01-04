@@ -13,6 +13,8 @@ import tempfile
 class kestrelAMPL:
   def __init__(self):
     (self.host,self.port) = self.getNEOSServer()
+    (self.username,self.userpassword) = self.getAuthenticationOptions()
+    
     sys.stdout.write("Connecting to: %s:%s\n" % (self.host,self.port) )
     self.neos = xmlrpclib.ServerProxy("https://%s:%s" % (self.host,self.port) )
     try:
@@ -48,7 +50,11 @@ class kestrelAMPL:
 
   def submit(self, xml):
     user = "%s on %s" % (os.getenv('LOGNAME'),socket.getfqdn(socket.gethostname()))
-    (jobNumber,password) =self.neos.submitJob(xml,user,"kestrel")
+    if (self.username is None or self.userpassword is None):
+      (jobNumber,password) =self.neos.submitJob(xml,user,"kestrel")
+    else:
+      (jobNumber,password) = self.neos.authenticatedSubmitJob(xml,self.username,self.userpassword, "kestrel")
+      
     if jobNumber ==0:
       sys.stdout.write("Error: %s\nJob not submitted.\n" % password)
       sys.exit(1)
@@ -99,7 +105,42 @@ class kestrelAMPL:
         if m:
           host = m.groups()[0]
     return (host,port)
+
+  def getAuthenticationOptions(self):
+    """
+    If 'authenticate' is set to '"username","password"', then return
+    the authentication options
+    """
+    username=None
+    userpassword=None
+    options = None
     
+    if "neos_username" in os.environ.keys():
+      options = os.getenv("neos_username")
+    elif "NEOS_USERNAME" in os.environ.keys():
+      options = os.getenv("NEOS_USERNAME")
+    else:
+      return (username,userpassword)
+      
+    if options is not None:
+      m = re.match('(\S+)',options)
+      if m:
+        username = m.groups()[0]
+
+    if "neos_user_password" in os.environ.keys():
+      options = os.getenv("neos_user_password")
+    elif "NEOS_USER_PASSWORD" in os.environ.keys():
+      options = os.getenv("NEOS_USER_PASSWORD")
+    else:
+      return (username,userpassword)
+      
+    if options is not None:
+      m = re.match('(\S+)',options)
+      if m:
+        userpassword = m.groups()[0]
+
+    return (username,userpassword)
+ 
   def getSolverName(self):
     """
     Read in the kestrel_options to pick out the solver name.
