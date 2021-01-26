@@ -1,7 +1,7 @@
 Kestrel client for AMPL modeling environment
 
-A complete user's guide to Kestrel is available at http://neos.mcs.anl.gov/neos/kestrel.html
-
+A complete user's guide to using AMPL with Kestrel is available at
+https://ampl.com/try-ampl/run-ampl-on-neos/
 
 
 INSTALLATION
@@ -24,8 +24,8 @@ Windows:
   Important - Do not unzip the library.zip file, it needs to remain as it is.
 
 Unix: (requires python to be installed)
-  Download kestrel.tar.gz from http://neos.mcs.anl.gov/neos/downloads.html
-  Unzip kestrel.tar.gz into a directory in the path (we recommend the same directory as the ampl binary)
+  Download the Kestrel-AMPL-Linux repository from https://github.com/NEOS-Server/Kestrel-AMPL-Linux
+  We recommend placing the files in the same directory as the ampl binary.
 
 
 USAGE
@@ -44,6 +44,9 @@ should remain as usual with the following exceptions:
    If you do not know what solvers are available via Kestrel, submitting a job
    (see below) without setting kestrel_options will return a list of 
    possible solvers.
+
+ - Provide an email address for your NEOS job submission
+      ampl: option email "<email address>";
 
  - When kestrel_options is set, submit the job to NEOS by typing 
       ampl: solve;
