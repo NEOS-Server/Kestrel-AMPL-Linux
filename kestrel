@@ -7,90 +7,92 @@ import time
 import tempfile
 from kestrelAMPL import kestrelAMPL
 
-if __name__=="__main__":
-  kestrel = kestrelAMPL()
+if __name__ == "__main__":
+    kestrel = kestrelAMPL()
 
-  if len(sys.argv) < 2:
-    sys.stdout.write("kestrel should be called from inside AMPL.\n")
-    sys.exit(1)
+    if len(sys.argv) < 2:
+        sys.stdout.write("kestrel should be called from inside AMPL.\n")
+        sys.exit(1)
 
-  if sys.argv[1] == "submit":
-    xml = kestrel.formXML("kestproblem")
-    (jobNumber,password) = kestrel.submit(xml)
+    if sys.argv[1] == "submit":
+        xml = kestrel.formXML("kestproblem")
+        (jobNumber, password) = kestrel.submit(xml)
 
-    # Add the job, pass to the stack
-    jobfile = open(kestrel.tempfile(),'a')
-    jobfile.write("%d %s\n" % (jobNumber,password))
-    jobfile.close()
+        # Add the job, pass to the stack
+        jobfile = open(kestrel.tempfile(), 'a')
+        jobfile.write("%d %s\n" % (jobNumber, password))
+        jobfile.close()
 
-  elif sys.argv[1] == "retrieve":
-    # Pop job, pass from the stack
-    try:
-      jobfile = open(kestrel.tempfile(),'r')
-    except IOError, e:
-      sys.stdout.write("Error, could not open file %s.\n")
-      sys.stdout.write("Did you use kestrelsub?\n")
-      sys.exit(1)
+    elif sys.argv[1] == "retrieve":
+        # Pop job, pass from the stack
+        try:
+            jobfile = open(kestrel.tempfile(), 'r')
+        except IOError, e:
+            sys.stdout.write("Error, could not open file %s.\n")
+            sys.stdout.write("Did you use kestrelsub?\n")
+            sys.exit(1)
 
-    m = re.match(r'(\d+) ([a-zA-Z]+)',jobfile.readline())
-    if m:
-      jobNumber = int(m.groups()[0])
-      password = m.groups()[1]
-    restofstack = jobfile.read()
-    jobfile.close()
+        m = re.match(r'(\d+) ([a-zA-Z]+)', jobfile.readline())
+        if m:
+            jobNumber = int(m.groups()[0])
+            password = m.groups()[1]
+        restofstack = jobfile.read()
+        jobfile.close()
 
-    kestrel.retrieve('kestresult',jobNumber,password)
+        kestrel.retrieve('kestresult', jobNumber, password)
 
-    if restofstack:
-      sys.stdout.write("restofstack: %s\n" % restofstack)
-      jobfile = open(kestrel.tempfile(),'w')
-      jobfile.write(restofstack)
-      jobfile.close()
+        if restofstack:
+            sys.stdout.write("restofstack: %s\n" % restofstack)
+            jobfile = open(kestrel.tempfile(), 'w')
+            jobfile.write(restofstack)
+            jobfile.close()
+        else:
+            os.unlink(kestrel.tempfile())
+
+    elif sys.argv[1] == "kill":
+        (jobNumber, password) = kestrel.getJobAndPassword()
+        if jobNumber:
+            kestrel.kill(jobNumber, password)
+        else:
+            sys.stdout.write(
+                "To kill a NEOS job, first set kestrel_options variable:\n")
+            sys.stdout.write(
+                '\tampl: option kestrel_options "job=#### password=xxxx";\n')
+
     else:
-      os.unlink(kestrel.tempfile())
+        try:
+            stub = sys.argv[1]
+            # See if kestrel_options has job=.. password=..
+            (jobNumber, password) = kestrel.getJobAndPassword()
 
-  elif sys.argv[1] == "kill":
-    (jobNumber,password) = kestrel.getJobAndPassword()
-    if jobNumber:
-      kestrel.kill(jobNumber,password)
-    else:
-      sys.stdout.write("To kill a NEOS job, first set kestrel_options variable:\n")
-      sys.stdout.write('\tampl: option kestrel_options "job=#### password=xxxx";\n')
+            # otherwise, submit current problem to NEOS
+            if not jobNumber:
+                xml = kestrel.formXML(stub)
+                (jobNumber, password) = kestrel.submit(xml)
 
-  else:
-    try:
-      stub = sys.argv[1]
-      # See if kestrel_options has job=.. password=..
-      (jobNumber,password) = kestrel.getJobAndPassword()
+        except KeyboardInterrupt, (e):
+            sys.stdout.write("Keyboard Interrupt while submitting problem.\n")
+            sys.exit(1)
+        try:
+            # Get intermediate results
+            time.sleep(1)
+            status = "Running"
+            offset = 0
+            while status == "Running" or status == "Waiting":
+                (output, offset) = kestrel.neos.getIntermediateResults(jobNumber,
+                                                                       password, offset)
 
-      # otherwise, submit current problem to NEOS
-      if not jobNumber:
-        xml = kestrel.formXML(stub)
-        (jobNumber,password) = kestrel.submit(xml)
+                if isinstance(output, xmlrpclib.Binary):
+                    output = output.data
+                sys.stdout.write(output)
+                status = kestrel.neos.getJobStatus(jobNumber, password)
+                time.sleep(5)
 
-    except KeyboardInterrupt, (e):
-      sys.stdout.write("Keyboard Interrupt while submitting problem.\n")
-      sys.exit(1)
-    try:
-      # Get intermediate results
-      time.sleep(1)
-      status = "Running"
-      offset = 0
-      while status == "Running" or status == "Waiting":
-        (output,offset) = kestrel.neos.getIntermediateResults(jobNumber,
-                                                           password,offset)
-
-        if isinstance(output,xmlrpclib.Binary):
-          output = output.data
-        sys.stdout.write(output)
-        status = kestrel.neos.getJobStatus(jobNumber,password)
-        time.sleep(5)
-
-      # Get final results
-      kestrel.retrieve(stub,jobNumber,password)
-      sys.exit(0)
-    except KeyboardInterrupt, (e):
-      msg = '''
+            # Get final results
+            kestrel.retrieve(stub, jobNumber, password)
+            sys.exit(0)
+        except KeyboardInterrupt, (e):
+            msg = '''
 Keyboard Interrupt\n\
 Job is still running on remote machine\n\
 To stop job:\n\
@@ -98,6 +100,6 @@ To stop job:\n\
 \tampl: commands kestrelkill;\n\
 To retrieve results:\n\
 \tampl: option kestrel_options "job=%d password=%s";\n\
-\tampl: solve;\n''' % (jobNumber,password,jobNumber,password)
-      sys.stdout.write(msg)
-      sys.exit(1)
+\tampl: solve;\n''' % (jobNumber, password, jobNumber, password)
+            sys.stdout.write(msg)
+            sys.exit(1)
