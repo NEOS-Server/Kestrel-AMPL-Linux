@@ -39,7 +39,7 @@ class kestrelAMPL:
     def tempfile(self):
         return os.path.join(tempfile.gettempdir(), 'at{}.jobs'.format(os.getenv('ampl_id')))
 
-    def kill(self, jobnumber, password):
+    def kill(self, jobNumber, password):
         response = self.neos.killJob(jobNumber, password)
         sys.stdout.write(response+"\n")
 
