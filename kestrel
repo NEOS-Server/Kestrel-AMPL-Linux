@@ -1,11 +1,16 @@
 #!/usr/bin/env python
 import os
 import re
-import xmlrpclib
 import sys
 import time
 import tempfile
 from kestrelAMPL import kestrelAMPL
+PYTHON2 = sys.version_info < (3, 0)
+if PYTHON2:  # for Python 2
+    import xmlrpclib
+else:  # for Python 3
+    import xmlrpc.client as xmlrpclib
+
 
 if __name__ == "__main__":
     kestrel = kestrelAMPL()
@@ -27,7 +32,7 @@ if __name__ == "__main__":
         # Pop job, pass from the stack
         try:
             jobfile = open(kestrel.tempfile(), 'r')
-        except IOError, e:
+        except IOError:
             sys.stdout.write("Error, could not open file %s.\n")
             sys.stdout.write("Did you use kestrelsub?\n")
             sys.exit(1)
@@ -70,7 +75,7 @@ if __name__ == "__main__":
                 xml = kestrel.formXML(stub)
                 (jobNumber, password) = kestrel.submit(xml)
 
-        except KeyboardInterrupt, (e):
+        except KeyboardInterrupt:
             sys.stdout.write("Keyboard Interrupt while submitting problem.\n")
             sys.exit(1)
         try:
@@ -84,6 +89,8 @@ if __name__ == "__main__":
 
                 if isinstance(output, xmlrpclib.Binary):
                     output = output.data
+                if isinstance(output, bytes):
+                    output = output.decode()
                 sys.stdout.write(output)
                 status = kestrel.neos.getJobStatus(jobNumber, password)
                 time.sleep(5)
@@ -91,7 +98,7 @@ if __name__ == "__main__":
             # Get final results
             kestrel.retrieve(stub, jobNumber, password)
             sys.exit(0)
-        except KeyboardInterrupt, (e):
+        except KeyboardInterrupt:
             msg = '''
 Keyboard Interrupt\n\
 Job is still running on remote machine\n\

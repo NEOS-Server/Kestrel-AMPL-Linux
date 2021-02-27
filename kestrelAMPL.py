@@ -1,12 +1,21 @@
 import os
 import re
-import xmlrpclib
 import sys
 import socket
 import gzip
 import base64
-import StringIO
 import tempfile
+PYTHON2 = sys.version_info < (3, 0)
+if PYTHON2:  # for Python 2
+    import xmlrpclib
+    import StringIO
+    base64_encodestring = base64.encodestring
+else:  # for Python 3
+    import xmlrpc.client as xmlrpclib
+    import io
+
+    def base64_encodestring(str):
+        return base64.encodebytes(str).decode()
 
 
 class kestrelAMPL:
@@ -30,8 +39,8 @@ class kestrelAMPL:
         self.neos = xmlrpclib.ServerProxy(
             "https://{}:{}".format(self.host, self.port))
         try:
-            result = self.neos.ping()
-        except socket.error, e:
+            self.neos.ping()
+        except socket.error:
             sys.stderr.write(
                 "Error, NEOS solver is temporarily unavailable.\n")
             sys.exit(1)
@@ -108,12 +117,12 @@ class kestrelAMPL:
         elif "NEOS_SERVER" in os.environ.keys():
             options = os.getenv("NEOS_SERVER")
         if options is not None:
-            m = re.match('(\S+):(\d+)', options)
+            m = re.match(r'(\S+):(\d+)', options)
             if m:
                 host = m.groups()[0]
                 port = m.groups()[1]
             else:
-                m = re.match('(\S+)', options)
+                m = re.match(r'(\S+)', options)
                 if m:
                     host = m.groups()[0]
         return (host, port)
@@ -124,6 +133,7 @@ class kestrelAMPL:
         """
         email = ""
         option = None
+
         if "email" in os.environ.keys():
             option = os.getenv("email")
         elif "EMAIL" in os.environ.keys():
@@ -151,7 +161,7 @@ class kestrelAMPL:
             return (username, userpassword)
 
         if options is not None:
-            m = re.match('(\S+)', options)
+            m = re.match(r'(\S+)', options)
             if m:
                 username = m.groups()[0]
 
@@ -163,7 +173,7 @@ class kestrelAMPL:
             return (username, userpassword)
 
         if options is not None:
-            m = re.match('(\S+)', options)
+            m = re.match(r'(\S+)', options)
             if m:
                 userpassword = m.groups()[0]
 
@@ -193,7 +203,7 @@ class kestrelAMPL:
             self.options = os.getenv("KESTREL_OPTIONS")
 
         if self.options is not None:
-            m = re.search('solver\s*=*\s*(\S+)', self.options, re.IGNORECASE)
+            m = re.search(r'solver\s*=*\s*(\S+)', self.options, re.IGNORECASE)
             NEOS_solver_name = None
             if m:
                 solver_name = m.groups()[0]
@@ -226,7 +236,10 @@ class kestrelAMPL:
         Create xml file for this problem
         """
         solver = self.getSolverName()
-        zipped_nl_file = StringIO.StringIO()
+        if PYTHON2:
+            zipped_nl_file = StringIO.StringIO()
+        else:
+            zipped_nl_file = io.BytesIO()
         with open(stub+".nl", "rb") as nlfile:
             zipper = gzip.GzipFile(mode='wb', fileobj=zipped_nl_file)
             zipper.write(nlfile.read())
@@ -275,7 +288,7 @@ class kestrelAMPL:
           <nlfile><base64>%s</base64></nlfile>\n""" %\
             (solver, self.email, priority,
              solver_options,
-             base64.encodestring(zipped_nl_file.getvalue()))
+             base64_encodestring(zipped_nl_file.getvalue()))
 
         for key in ampl_files.keys():
             xml += "<%s><![CDATA[%s]]></%s>\n" % (key, ampl_files[key], key)
