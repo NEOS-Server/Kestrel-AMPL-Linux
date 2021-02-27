@@ -123,7 +123,7 @@ class kestrelAMPL:
         Get email provided by user.
         """
         email = ""
-
+        option = None
         if "email" in os.environ.keys():
             option = os.getenv("email")
         elif "EMAIL" in os.environ.keys():
